@@ -44,6 +44,12 @@ final class Settings
             'button_label' => __('Request a quote', 'advanced-quotes-for-woocommerce'),
             'cart_button' => 'yes',
             'request_page' => (int) get_option('wewp_aq_request_page', 0),
+            'field_phone' => 'optional',
+            'field_company' => 'optional',
+            'field_tax_id' => 'optional',
+            'field_address' => 'optional',
+            'field_message' => 'optional',
+            'request_fields' => [],
         ];
     }
 
@@ -85,6 +91,11 @@ final class Settings
         $out['button'] = ($input['button'] ?? 'yes') === 'no' ? 'no' : 'yes';
         $out['cart_button'] = ($input['cart_button'] ?? 'yes') === 'no' ? 'no' : 'yes';
         $out['request_page'] = absint($input['request_page'] ?? 0);
+        foreach (RequestFields::CONTACT as $field) {
+            $mode = $input['field_'.$field] ?? 'optional';
+            $out['field_'.$field] = in_array($mode, RequestFields::MODES, true) ? $mode : 'optional';
+        }
+        $out['request_fields'] = RequestFields::sanitize($input['request_fields'] ?? []);
         if ($out['title'] === '') {
             $out['title'] = $defaults['title'];
         }

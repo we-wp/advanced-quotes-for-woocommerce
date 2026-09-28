@@ -6,6 +6,7 @@ use WC_Product;
 use WC_Tax;
 use WeWP\AdvancedQuotes\Access;
 use WeWP\AdvancedQuotes\Plugin;
+use WeWP\AdvancedQuotes\RequestFields;
 use WeWP\AdvancedQuotes\Settings;
 use WeWP\AdvancedQuotes\Snapshot;
 use WeWP\AdvancedQuotes\Store;
@@ -84,6 +85,14 @@ final class Editor
             echo '<li><strong>'.esc_html((string) $item['quantity']).' × </strong>'.esc_html((string) $item['name']).($item['sku'] !== '' ? ' <span class="wewp-aq-muted">'.esc_html((string) $item['sku']).'</span>' : '').'</li>';
         }
         echo '</ul>';
+        $answers = RequestFields::answers($request);
+        if ($answers) {
+            echo '<dl class="wewp-aq-answers">';
+            foreach ($answers as $answer) {
+                echo '<div><dt>'.esc_html($answer['label']).'</dt><dd>'.nl2br(esc_html($answer['text'])).'</dd></div>';
+            }
+            echo '</dl>';
+        }
         if (trim((string) ($request['message'] ?? '')) !== '') {
             echo '<blockquote>'.nl2br(esc_html((string) $request['message'])).'</blockquote>';
         }

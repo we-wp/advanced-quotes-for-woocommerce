@@ -305,3 +305,101 @@ mark.wewp-aq-status.is-cancelled { background: #e5e5e5; color: #5b5b5b; }
 
 /* Settings */
 .wewp-aq-logo-preview img { display: block; max-width: 240px; max-height: 96px; margin-bottom: 8px; border: 1px solid #dcdcde; padding: 6px; background: #fff; }
+
+/* Request answers in the quote generator */
+.wewp-aq-answers {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 10px 24px;
+	margin: 14px 0 0;
+	padding-top: 12px;
+	border-top: 1px solid #f0f0f1;
+}
+@media (min-width: 783px) {
+	.wewp-aq-answers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.wewp-aq-answers div { min-width: 0; }
+.wewp-aq-answers dt { color: #646970; font-size: 12px; line-height: 1.5; }
+.wewp-aq-answers dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+
+/* Request form builder (Settings → Quotes → Request form) */
+/* The builder sits inside the settings form table, so its rules name that table to take precedence. */
+.form-table .wewp-aq-builder-row > td { padding: 0 0 8px; }
+.wewp-aq-builder { max-width: 1100px; }
+.wewp-aq-fields-table { table-layout: fixed; }
+.form-table .wewp-aq-fields-table th { box-sizing: border-box; width: auto; padding: 10px 12px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
+.form-table .wewp-aq-fields-table td { padding: 12px; vertical-align: top; line-height: 1.4; }
+.form-table .wewp-aq-fields-table .col-type { width: 180px; }
+.form-table .wewp-aq-fields-table .col-choices { width: 26%; }
+.form-table .wewp-aq-fields-table .col-required { width: 104px; text-align: center; }
+.form-table .wewp-aq-fields-table .col-actions { width: 124px; text-align: right; }
+.woocommerce table.form-table .wewp-aq-fields-table input[type="text"],
+.woocommerce table.form-table .wewp-aq-fields-table select,
+.woocommerce table.form-table .wewp-aq-fields-table textarea { width: 100%; max-width: none; }
+.wewp-aq-fields-table textarea { min-height: 76px; }
+.wewp-aq-fields-table .col-required input { margin-top: 8px; }
+.wewp-aq-help-label { display: block; margin: 8px 0 3px; font-size: 12px; color: #50575e; }
+.wewp-aq-field-row[data-choices="0"] .col-choices textarea { display: none; }
+.wewp-aq-field-row[data-choices="1"] .wewp-aq-no-choices { display: none; }
+.wewp-aq-no-choices { display: block; padding-top: 6px; }
+.wewp-aq-cell-label {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+	border: 0;
+}
+.wewp-aq-field-actions { display: inline-flex; gap: 2px; }
+.wewp-aq-field-actions .button-link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	border-radius: 3px;
+	color: #50575e;
+	text-decoration: none;
+}
+.wewp-aq-field-actions .button-link:hover { background: #f0f0f1; color: #1d2327; }
+.wewp-aq-field-actions .button-link-delete:hover { color: #b32d2e; }
+.wewp-aq-field-actions [aria-disabled="true"],
+.wewp-aq-field-actions [aria-disabled="true"]:hover { opacity: 0.35; background: none; cursor: default; }
+.wewp-aq-fields-empty {
+	margin: 4px 0 0;
+	padding: 16px 18px;
+	background: #fff;
+	border: 1px dashed #c3c4c7;
+	color: #50575e;
+}
+.wewp-aq-fields-foot { margin: 12px 0 0; }
+.wewp-aq-fields-foot .button .dashicons { width: 16px; height: 16px; margin: 0 2px 0 -2px; font-size: 16px; vertical-align: text-top; }
+.wewp-aq-fields-foot .description { margin-left: 6px; }
+@media (max-width: 782px) {
+	.wewp-aq-fields-table thead { display: none; }
+	.wewp-aq-fields-table,
+	.wewp-aq-fields-table tbody,
+	.wewp-aq-fields-table tr,
+	.wewp-aq-fields-table td { display: block; width: auto !important; text-align: left !important; }
+	.wewp-aq-fields-table tr { padding: 6px 0; border-bottom: 1px solid #c3c4c7; }
+	.form-table .wewp-aq-fields-table td { padding: 6px 12px; }
+	.wewp-aq-field-row[data-choices="0"] .col-choices { display: none; }
+	.wewp-aq-cell-label {
+		position: static !important;
+		display: block;
+		width: auto;
+		height: auto;
+		margin: 0 0 4px;
+		overflow: visible;
+		clip: auto;
+		white-space: normal;
+		font-weight: 600;
+	}
+	.wewp-aq-fields-table .col-required label { display: inline-flex; align-items: center; gap: 8px; }
+	.wewp-aq-fields-table .col-required input { margin-top: 0; }
+	.wewp-aq-fields-table .col-required .wewp-aq-cell-label { display: inline; margin: 0; font-weight: 400; }
+	.wewp-aq-field-actions .button-link { width: 40px; height: 40px; }
+}

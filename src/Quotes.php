@@ -153,8 +153,9 @@ final class Quotes
      * Create a quote from a storefront request. Lines start at the current catalogue price.
      *
      * @param list<array{product_id:int,variation_id:int,quantity:int,attributes?:array<string,string>}> $items
+     * @param list<array{id:string,label:string,type:string,value:string|list<string>}> $answers Checked answers to the extra request fields.
      */
-    public function createRequest(array $customer, array $items, string $message, int $userId): array
+    public function createRequest(array $customer, array $items, string $message, int $userId, array $answers = []): array
     {
         $draft = $this->blankDraft();
         $draft['customer'] = array_merge($draft['customer'], array_intersect_key($customer, $draft['customer']));
@@ -183,7 +184,7 @@ final class Quotes
         if (! $draft['lines']) {
             throw new RuntimeException(__('Your quote list is empty.', 'advanced-quotes-for-woocommerce'));
         }
-        $request = ['items' => $requested, 'message' => $message, 'submitted_at' => gmdate('Y-m-d H:i:s')];
+        $request = ['items' => $requested, 'fields' => array_values($answers), 'message' => $message, 'submitted_at' => gmdate('Y-m-d H:i:s')];
         $quote = $this->plugin->store->create(['status' => 'requested', 'source' => 'storefront', 'actor_id' => $userId] + $this->fields($draft, '0'), $draft, $request, Settings::value('prefix'));
         do_action('wewp_aq_request_created', $quote['id']);
 

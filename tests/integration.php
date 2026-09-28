@@ -12,6 +12,7 @@ use WeWP\AdvancedQuotes\Calculator;
 use WeWP\AdvancedQuotes\Money;
 use WeWP\AdvancedQuotes\Plugin;
 use WeWP\AdvancedQuotes\Privacy;
+use WeWP\AdvancedQuotes\RequestFields;
 use WeWP\AdvancedQuotes\Settings;
 
 $GLOBALS['aq_checks'] = 0;
@@ -274,6 +275,47 @@ check(current_user_can('manage_wewp_quotes'), 'administrator has the quotes capa
 // 7. Storefront request.
 $request = $quotes->createRequest(['first_name' => 'Guest', 'last_name' => 'Fixture', 'email' => 'guest-fixture@example.test', 'country' => 'LT'], [['product_id' => $standard->get_id(), 'variation_id' => 0, 'quantity' => 3]], 'Please include delivery.', 0);
 check($request['status'] === 'requested' && $request['draft']['lines'][0]['unit_price'] === '19.99' && $request['request']['message'] === 'Please include delivery.', 'request stored with catalogue price and message');
+
+// 7b. Extra request fields: definitions, validation, storage and display.
+$rawDefs = [
+    'f_budget01' => ['id' => 'f_budget01', 'label' => 'Budget', 'type' => 'select', 'required' => 'yes', 'choices' => "Under 1,000\n1,000–5,000\n1,000–5,000\n\n"],
+    'Bad Id!' => ['label' => '<b>Event date</b>', 'type' => 'date'],
+    'f_blank000' => ['label' => '   ', 'type' => 'text'],
+    'f_guests00' => ['label' => 'Guests', 'type' => 'number', 'required' => 'yes', 'help' => 'Adults and children'],
+    'f_extras00' => ['label' => 'Extras', 'type' => 'checkboxes', 'choices' => ['Setup', 'Delivery', 'Setup']],
+    'f_install0' => ['label' => 'Installation needed', 'type' => 'checkbox'],
+    'f_odd00000' => ['label' => 'Notes', 'type' => 'script', 'choices' => 'ignored'],
+    'f_nochoice' => ['label' => 'Colour', 'type' => 'radio', 'choices' => ''],
+];
+$defs = RequestFields::sanitize($rawDefs);
+check(count($defs) === 7 && array_column($defs, 'label') === ['Budget', 'Event date', 'Guests', 'Extras', 'Installation needed', 'Notes', 'Colour'], 'blank labels dropped, tags stripped');
+check($defs[0]['choices'] === ['Under 1,000', '1,000–5,000'] && $defs[0]['required'] && ! $defs[1]['required'], 'choices trimmed and unique, required flag kept');
+check((bool) preg_match('/^f_[a-f0-9]{8}$/', $defs[1]['id']) && $defs[1]['id'] === RequestFields::sanitize($rawDefs)[1]['id'] && RequestFields::sanitize($defs) === $defs, 'invalid ids replaced by a stable id');
+check($defs[5]['type'] === 'text' && $defs[5]['choices'] === [] && $defs[3]['choices'] === ['Setup', 'Delivery'], 'unknown type becomes text; choices only for choice types');
+check(count(RequestFields::sanitize(array_fill(0, 30, ['label' => 'Many', 'type' => 'text']))) === RequestFields::MAX_FIELDS, 'at most 20 fields kept');
+Settings::save(['request_fields' => $defs, 'field_phone' => 'required', 'field_tax_id' => 'hidden', 'field_address' => 'bogus']);
+$saved = Settings::get();
+check($saved['field_phone'] === 'required' && $saved['field_tax_id'] === 'hidden' && $saved['field_address'] === 'optional' && $saved['request_fields'] === $defs, 'request form settings saved and validated');
+$active = RequestFields::active();
+check(count($active) === 6 && ! in_array('Colour', array_column($active, 'label'), true), 'choice field without choices stays off the form');
+$bad = RequestFields::collect($active, [$defs[0]['id'] => 'Over 9,000', $defs[1]['id'] => '2026-02-30', $defs[2]['id'] => '12 people', $defs[3]['id'] => ['Setup', 'Forged']]);
+check($bad['invalid'] === [$defs[0]['id'], $defs[1]['id'], $defs[2]['id'], $defs[3]['id']] && count($bad['errors']) === 4 && array_column($bad['answers'], 'label') === ['Installation needed'], 'invalid choice, date, number and checkbox answers refused');
+$missing = RequestFields::collect($active, []);
+check($missing['invalid'] === [$defs[0]['id'], $defs[2]['id']] && str_contains($missing['errors'][0], 'Budget') && str_contains($missing['errors'][1], 'Guests'), 'required fields reported by label');
+$good = RequestFields::collect($active, [$defs[0]['id'] => '1,000–5,000', $defs[1]['id'] => '2026-10-12', $defs[2]['id'] => '1,5', $defs[3]['id'] => ['Delivery', 'Setup'], $defs[4]['id'] => 'yes', $defs[5]['id'] => "  <em>Side</em> door  "]);
+check($good['errors'] === [] && array_column($good['answers'], 'value') === ['1,000–5,000', '2026-10-12', '1.5', ['Setup', 'Delivery'], 'yes', 'Side door'], 'valid answers kept in form order');
+$fieldRequest = $quotes->createRequest(['first_name' => 'Field', 'last_name' => 'Fixture', 'email' => 'fields-fixture@example.test', 'country' => 'LT'], [['product_id' => $standard->get_id(), 'variation_id' => 0, 'quantity' => 1]], '', 0, $good['answers']);
+$stored = $store->find($fieldRequest['id'])['request'];
+check($stored['fields'][0]['label'] === 'Budget' && $stored['fields'][3]['value'] === ['Setup', 'Delivery'], 'answers stored with the request and their labels');
+Settings::save(['request_fields' => [['id' => $defs[0]['id'], 'label' => 'Renamed budget', 'type' => 'text']]]);
+$shown = RequestFields::answers($store->find($fieldRequest['id'])['request']);
+check($shown[0]['label'] === 'Budget' && $shown[3]['text'] === 'Setup, Delivery' && $shown[4]['text'] === 'Yes' && $shown[1]['text'] === wp_date((string) get_option('date_format'), strtotime('2026-10-12 12:00:00')), 'a stored request keeps its labels after the form changes');
+$unticked = RequestFields::collect([['id' => 'f_tick0000', 'label' => 'Gift wrap', 'type' => 'checkbox', 'required' => false, 'help' => '', 'choices' => []]], []);
+check(RequestFields::answers(['fields' => $unticked['answers']])[0]['text'] === 'No', 'an unticked checkbox shows No');
+$fieldExport = wp_json_encode((new Privacy($store))->export('fields-fixture@example.test'));
+check(str_contains($fieldExport, 'Side door'), 'privacy export includes the answers');
+(new Privacy($store))->erase('fields-fixture@example.test');
+Settings::save(['request_fields' => [], 'field_phone' => 'optional', 'field_tax_id' => 'optional']);
 
 // 8. Privacy.
 $privacy = new Privacy($store);

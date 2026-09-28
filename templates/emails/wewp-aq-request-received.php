@@ -4,6 +4,7 @@
  *
  * @var array $quote
  * @var array|null $request
+ * @var array $answers
  * @var string $email_heading
  * @var string $additional_content
  * @var WC_Email $email
@@ -23,6 +24,18 @@ do_action('woocommerce_email_header', $email_heading, $email);
 	<?php endforeach; ?>
 	</tbody>
 </table>
+<?php endif; ?>
+<?php if (! empty($answers)) : ?>
+<table cellspacing="0" cellpadding="6" border="1" style="width:100%;border-collapse:collapse;margin:0 0 20px;">
+	<tbody>
+	<?php foreach ($answers as $wewp_aq_answer) : ?>
+		<tr><th scope="row" style="text-align:left;width:40%;"><?php echo esc_html($wewp_aq_answer['label']); ?></th><td><?php echo nl2br(esc_html($wewp_aq_answer['text'])); ?></td></tr>
+	<?php endforeach; ?>
+	</tbody>
+</table>
+<?php endif; ?>
+<?php if (! empty($request['message'])) : ?>
+<blockquote style="margin:0 0 20px;padding:12px 16px;border-left:3px solid #dcdcde;"><?php echo nl2br(esc_html((string) $request['message'])); ?></blockquote>
 <?php endif; ?>
 <?php
 if ($additional_content) {

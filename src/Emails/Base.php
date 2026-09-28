@@ -4,6 +4,7 @@ namespace WeWP\AdvancedQuotes\Emails;
 
 use WC_Email;
 use WeWP\AdvancedQuotes\Access;
+use WeWP\AdvancedQuotes\RequestFields;
 use WeWP\AdvancedQuotes\Snapshot;
 
 /**
@@ -47,6 +48,7 @@ abstract class Base extends WC_Email
             'quote' => $this->quote,
             'snapshot' => $snapshot,
             'request' => $this->quote['request'] ?? null,
+            'answers' => RequestFields::answers($this->quote['request'] ?? null),
             'total' => $snapshot ? Snapshot::money($snapshot['totals']['total'], $snapshot['format']) : '',
             'quote_url' => $this->quote && $this->quote['revision'] > 0 ? Access::url($this->quote) : '',
             'admin_url' => admin_url('admin.php?page=wewp-quotes&action=edit&quote='.(int) ($this->quote['id'] ?? 0)),

@@ -23,7 +23,7 @@ final class Privacy
         });
         add_action('admin_init', static function (): void {
             if (function_exists('wp_add_privacy_policy_content')) {
-                wp_add_privacy_policy_content(__('Advanced Quotes', 'advanced-quotes-for-woocommerce'), wp_kses_post(wpautop(__('When you request a quote, the store keeps your name, company, contact details, address, requested items and message to prepare the quote. Sent quotes and their PDF files are kept as business records. The quote plugin sends no data to third parties.', 'advanced-quotes-for-woocommerce'))));
+                wp_add_privacy_policy_content(__('Advanced Quotes', 'advanced-quotes-for-woocommerce'), wp_kses_post(wpautop(__('When you request a quote, the store keeps your name, company, contact details, address, requested items, message and any other answers you give on the request form to prepare the quote. Sent quotes and their PDF files are kept as business records. The quote plugin sends no data to third parties.', 'advanced-quotes-for-woocommerce'))));
             }
         });
     }

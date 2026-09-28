@@ -6,6 +6,7 @@ use RuntimeException;
 use Throwable;
 use WC_Product;
 use WeWP\AdvancedQuotes\Plugin;
+use WeWP\AdvancedQuotes\RequestFields;
 use WeWP\AdvancedQuotes\Settings;
 
 /**
@@ -19,6 +20,9 @@ final class RequestPage
     public const SESSION = 'wewp_aq_list';
 
     public const MAX_ITEMS = 50;
+
+    /** Fields that failed the last submission, so the form can mark them. */
+    private array $invalid = [];
 
     public function __construct(private Plugin $plugin) {}
 
@@ -244,9 +248,13 @@ final class RequestPage
                     return;
             }
         } catch (RuntimeException $e) {
-            wc_add_notice($e->getMessage(), 'error');
+            // Form errors arrive one per line; each becomes its own notice.
+            foreach (explode("\n", $e->getMessage()) as $message) {
+                wc_add_notice(esc_html($message), 'error');
+            }
             if ($op === 'submit') {
                 WC()->session->set('wewp_aq_form', $this->posted());
+                WC()->session->set('wewp_aq_form_invalid', $this->invalid);
 
                 return;
             }
@@ -265,6 +273,14 @@ final class RequestPage
         foreach (['first_name', 'last_name', 'company', 'email', 'phone', 'tax_id', 'country', 'address_1', 'city', 'postcode', 'message'] as $field) {
             // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Called from handle() after nonce verification.
             $fields[$field] = $field === 'message' ? sanitize_textarea_field(wp_unslash($_POST[$field] ?? '')) : sanitize_text_field(wp_unslash($_POST[$field] ?? ''));
+        }
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Called from handle() after nonce verification; each value is cleaned below.
+        $extra = isset($_POST['wewp_aq_extra']) && is_array($_POST['wewp_aq_extra']) ? wp_unslash($_POST['wewp_aq_extra']) : [];
+        $fields['extra'] = [];
+        foreach (array_slice($extra, 0, RequestFields::MAX_FIELDS * 2, true) as $id => $value) {
+            $fields['extra'][sanitize_key((string) $id)] = is_array($value)
+                ? array_map(static fn ($item): string => mb_substr(sanitize_text_field(is_scalar($item) ? (string) $item : ''), 0, 120), array_slice(array_values($value), 0, RequestFields::MAX_CHOICES))
+                : mb_substr(sanitize_textarea_field(is_scalar($value) ? (string) $value : ''), 0, 2000);
         }
 
         return $fields;
@@ -287,21 +303,37 @@ final class RequestPage
         }
         $fields = $this->posted();
         // phpcs:enable
+        $extra = $fields['extra'];
+        unset($fields['extra']);
+        $settings = Settings::get();
+        // Errors follow the order of the form.
         $errors = [];
-        foreach (['first_name' => __('first name', 'advanced-quotes-for-woocommerce'), 'last_name' => __('last name', 'advanced-quotes-for-woocommerce'), 'country' => __('country', 'advanced-quotes-for-woocommerce')] as $field => $label) {
+        foreach (['first_name' => __('first name', 'advanced-quotes-for-woocommerce'), 'last_name' => __('last name', 'advanced-quotes-for-woocommerce')] as $field => $label) {
             if ($fields[$field] === '') {
                 /* translators: %s: field name */
-                $errors[] = sprintf(__('Enter your %s.', 'advanced-quotes-for-woocommerce'), $label);
+                $errors[$field] = sprintf(__('Enter your %s.', 'advanced-quotes-for-woocommerce'), $label);
             }
         }
         if (! is_email($fields['email'])) {
-            $errors[] = __('Enter a valid email address.', 'advanced-quotes-for-woocommerce');
+            $errors['email'] = __('Enter a valid email address.', 'advanced-quotes-for-woocommerce');
         }
-        if ($fields['country'] !== '' && ! array_key_exists($fields['country'], WC()->countries->get_allowed_countries())) {
-            $errors[] = __('Choose a country we sell to.', 'advanced-quotes-for-woocommerce');
+        $errors += self::contactErrors($fields, $settings, ['phone', 'company', 'tax_id']);
+        if ($fields['country'] === '') {
+            /* translators: %s: field name */
+            $errors['country'] = sprintf(__('Enter your %s.', 'advanced-quotes-for-woocommerce'), __('country', 'advanced-quotes-for-woocommerce'));
+        } elseif (! array_key_exists($fields['country'], WC()->countries->get_allowed_countries())) {
+            $errors['country'] = __('Choose a country we sell to.', 'advanced-quotes-for-woocommerce');
         }
+        $errors += self::contactErrors($fields, $settings, ['address']);
+        $extra = RequestFields::collect(RequestFields::active(), $extra);
+        // Extra field ids get a prefix so they never collide with contact field names.
+        foreach ($extra['invalid'] as $index => $id) {
+            $errors['extra:'.$id] = $extra['errors'][$index];
+        }
+        $errors += self::contactErrors($fields, $settings, ['message']);
         if ($errors) {
-            throw new RuntimeException(implode(' ', $errors));
+            $this->invalid = array_keys($errors);
+            throw new RuntimeException(implode("\n", $errors));
         }
         // Limits use the connection address, which a client cannot set, plus per-recipient and store-wide caps.
         $address = isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : '';
@@ -331,7 +363,47 @@ final class RequestPage
         unset($fields['message']);
         $fields['email'] = strtolower($fields['email']);
 
-        return $this->plugin->quotes->createRequest($fields, $list, $message, get_current_user_id());
+        return $this->plugin->quotes->createRequest($fields, $list, $message, get_current_user_id(), $extra['answers']);
+    }
+
+    /**
+     * Apply the merchant's choice for optional contact fields: clear hidden ones and report missing required ones.
+     *
+     * @param list<string> $groups
+     * @return array<string, string> Field => error message.
+     */
+    private static function contactErrors(array &$fields, array $settings, array $groups): array
+    {
+        $messages = [
+            'phone' => ['phone' => __('Enter your phone number.', 'advanced-quotes-for-woocommerce')],
+            'company' => ['company' => __('Enter your company name.', 'advanced-quotes-for-woocommerce')],
+            'tax_id' => ['tax_id' => __('Enter your tax number.', 'advanced-quotes-for-woocommerce')],
+            'address' => ['address_1' => __('Enter your street address.', 'advanced-quotes-for-woocommerce'), 'postcode' => __('Enter your postcode.', 'advanced-quotes-for-woocommerce'), 'city' => __('Enter your city.', 'advanced-quotes-for-woocommerce')],
+            'message' => ['message' => __('Enter a message.', 'advanced-quotes-for-woocommerce')],
+        ];
+        $errors = [];
+        foreach ($groups as $group) {
+            $mode = $settings['field_'.$group] ?? 'optional';
+            foreach ($messages[$group] as $field => $message) {
+                if ($mode === 'hidden') {
+                    $fields[$field] = '';
+                } elseif ($mode === 'required' && trim($fields[$field]) === '' && ($field !== 'postcode' || self::postcodeNeeded($fields['country']))) {
+                    $errors[$field] = $message;
+                }
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Whether WooCommerce asks for a postcode in this country.
+     */
+    private static function postcodeNeeded(string $country): bool
+    {
+        $locale = WC()->countries->get_country_locale()[$country]['postcode'] ?? [];
+
+        return empty($locale['hidden']) && ($locale['required'] ?? true);
     }
 
     public function productButton(): void
@@ -445,7 +517,10 @@ final class RequestPage
     private function formHtml(): void
     {
         $saved = (array) (WC()->session->get('wewp_aq_form') ?: []);
+        $invalid = (array) (WC()->session->get('wewp_aq_form_invalid') ?: []);
         WC()->session->set('wewp_aq_form', null);
+        WC()->session->set('wewp_aq_form_invalid', null);
+        $settings = Settings::get();
         $customer = WC()->customer;
         $value = static function (string $field) use ($saved, $customer): string {
             if (isset($saved[$field])) {
@@ -466,25 +541,43 @@ final class RequestPage
         echo '<input type="hidden" name="wewp_aq_request_action" value="submit"><input type="hidden" name="wewp_aq_started" value="'.esc_attr($token).'">';
         echo '<p class="wewp-aq-hp" aria-hidden="true"><label for="wewp-aq-website">'.esc_html__('Leave this field empty', 'advanced-quotes-for-woocommerce').'</label><input id="wewp-aq-website" type="text" name="wewp_aq_website" tabindex="-1" autocomplete="off"></p>';
         $fields = [
-            'first_name' => [__('First name', 'advanced-quotes-for-woocommerce'), 'given-name', true, 'form-row-first'],
-            'last_name' => [__('Last name', 'advanced-quotes-for-woocommerce'), 'family-name', true, 'form-row-last'],
-            'email' => [__('Email', 'advanced-quotes-for-woocommerce'), 'email', true, 'form-row-first'],
-            'phone' => [__('Phone', 'advanced-quotes-for-woocommerce'), 'tel', false, 'form-row-last'],
-            'company' => [__('Company', 'advanced-quotes-for-woocommerce'), 'organization', false, 'form-row-first'],
-            'tax_id' => [__('Tax number', 'advanced-quotes-for-woocommerce'), 'off', false, 'form-row-last'],
+            'first_name' => [__('First name', 'advanced-quotes-for-woocommerce'), 'given-name', 'required'],
+            'last_name' => [__('Last name', 'advanced-quotes-for-woocommerce'), 'family-name', 'required'],
+            'email' => [__('Email', 'advanced-quotes-for-woocommerce'), 'email', 'required'],
+            'phone' => [__('Phone', 'advanced-quotes-for-woocommerce'), 'tel', $settings['field_phone']],
+            'company' => [__('Company', 'advanced-quotes-for-woocommerce'), 'organization', $settings['field_company']],
+            'tax_id' => [__('Tax number', 'advanced-quotes-for-woocommerce'), 'off', $settings['field_tax_id']],
         ];
-        foreach ($fields as $key => [$label, $autocomplete, $required, $class]) {
-            $this->field($key, $label, $autocomplete, $required, $class, $value($key));
+        // Visible fields fill two columns in order.
+        $column = 0;
+        foreach ($fields as $key => [$label, $autocomplete, $mode]) {
+            if ($mode !== 'hidden') {
+                $this->field($key, $label, $autocomplete, $mode === 'required', $column++ % 2 ? 'form-row-last' : 'form-row-first', $value($key), in_array($key, $invalid, true));
+            }
         }
-        echo '<p class="form-row form-row-wide"><label for="wewp-aq-f-country">'.esc_html__('Country', 'advanced-quotes-for-woocommerce').' <abbr class="required" title="'.esc_attr__('required', 'advanced-quotes-for-woocommerce').'">*</abbr></label><select id="wewp-aq-f-country" name="country" autocomplete="country" required>';
+        echo '<p class="form-row form-row-wide"><label for="wewp-aq-f-country">'.esc_html__('Country', 'advanced-quotes-for-woocommerce').' '.self::marker(true).'</label><select id="wewp-aq-f-country" name="country" autocomplete="country" required'.(in_array('country', $invalid, true) ? ' aria-invalid="true"' : '').'>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- marker() escapes its text.
         foreach (WC()->countries->get_allowed_countries() as $code => $name) {
             echo '<option value="'.esc_attr($code).'"'.selected($value('country'), $code, false).'>'.esc_html(html_entity_decode($name, ENT_QUOTES, 'UTF-8')).'</option>';
         }
         echo '</select></p>';
-        $this->field('address_1', __('Street address', 'advanced-quotes-for-woocommerce'), 'address-line1', false, 'form-row-wide', $value('address_1'));
-        $this->field('postcode', __('Postcode', 'advanced-quotes-for-woocommerce'), 'postal-code', false, 'form-row-first', $value('postcode'));
-        $this->field('city', __('City', 'advanced-quotes-for-woocommerce'), 'address-level2', false, 'form-row-last', $value('city'));
-        echo '<p class="form-row form-row-wide"><label for="wewp-aq-f-message">'.esc_html__('Message', 'advanced-quotes-for-woocommerce').' <span class="optional">('.esc_html__('optional', 'advanced-quotes-for-woocommerce').')</span></label><textarea id="wewp-aq-f-message" class="input-text" name="message" rows="4" maxlength="2000" placeholder="'.esc_attr__('Delivery date, quantities or other details', 'advanced-quotes-for-woocommerce').'">'.esc_textarea($saved['message'] ?? '').'</textarea></p>';
+        if ($settings['field_address'] !== 'hidden') {
+            $required = $settings['field_address'] === 'required';
+            $this->field('address_1', __('Street address', 'advanced-quotes-for-woocommerce'), 'address-line1', $required, 'form-row-wide', $value('address_1'), in_array('address_1', $invalid, true));
+            $this->field('postcode', __('Postcode', 'advanced-quotes-for-woocommerce'), 'postal-code', $required, 'form-row-first', $value('postcode'), in_array('postcode', $invalid, true));
+            $this->field('city', __('City', 'advanced-quotes-for-woocommerce'), 'address-level2', $required, 'form-row-last', $value('city'), in_array('city', $invalid, true));
+        }
+        $extra = RequestFields::active();
+        if ($extra) {
+            echo '<h3 class="wewp-aq-subhead">'.esc_html__('About your request', 'advanced-quotes-for-woocommerce').'</h3>';
+            foreach ($extra as $field) {
+                $this->extraField($field, $saved['extra'][$field['id']] ?? '', in_array('extra:'.$field['id'], $invalid, true));
+            }
+        }
+        if ($settings['field_message'] !== 'hidden') {
+            $required = $settings['field_message'] === 'required';
+            $placeholder = $extra ? __('Anything else we should know', 'advanced-quotes-for-woocommerce') : __('Delivery date, quantities or other details', 'advanced-quotes-for-woocommerce');
+            echo '<p class="form-row form-row-wide"><label for="wewp-aq-f-message">'.esc_html__('Message', 'advanced-quotes-for-woocommerce').' '.self::marker($required).'</label><textarea id="wewp-aq-f-message" class="input-text" name="message" rows="4" maxlength="2000" placeholder="'.esc_attr($placeholder).'"'.($required ? ' required aria-required="true"' : '').(in_array('message', $invalid, true) ? ' aria-invalid="true"' : '').'>'.esc_textarea($saved['message'] ?? '').'</textarea></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- marker() escapes its text.
+        }
         $privacy = get_privacy_policy_url();
         echo '<p class="wewp-aq-privacy">'.esc_html__('We store your details with the quote to answer your request.', 'advanced-quotes-for-woocommerce').($privacy ? ' <a href="'.esc_url($privacy).'">'.esc_html__('Privacy policy', 'advanced-quotes-for-woocommerce').'</a>' : '').'</p>';
         echo '<p><button type="submit" class="button alt wp-element-button wewp-aq-submit">'.esc_html__('Send quote request', 'advanced-quotes-for-woocommerce').'</button></p></form>';
@@ -500,10 +593,67 @@ final class RequestPage
         return $time.'.'.wp_hash('wewp_aq_started|'.$time.'|'.$session);
     }
 
-    private function field(string $key, string $label, string $autocomplete, bool $required, string $class, string $value): void
+    private static function marker(bool $required): string
+    {
+        return $required
+            ? '<abbr class="required" title="'.esc_attr__('required', 'advanced-quotes-for-woocommerce').'">*</abbr>'
+            : '<span class="optional">('.esc_html__('optional', 'advanced-quotes-for-woocommerce').')</span>';
+    }
+
+    private function field(string $key, string $label, string $autocomplete, bool $required, string $class, string $value, bool $invalid = false): void
     {
         $type = $key === 'email' ? 'email' : ($key === 'phone' ? 'tel' : 'text');
-        echo '<p class="form-row '.esc_attr($class).'"><label for="wewp-aq-f-'.esc_attr($key).'">'.esc_html($label).' '.($required ? '<abbr class="required" title="'.esc_attr__('required', 'advanced-quotes-for-woocommerce').'">*</abbr>' : '<span class="optional">('.esc_html__('optional', 'advanced-quotes-for-woocommerce').')</span>').'</label>';
-        echo '<input id="wewp-aq-f-'.esc_attr($key).'" class="input-text" type="'.esc_attr($type).'" name="'.esc_attr($key).'" value="'.esc_attr($value).'" autocomplete="'.esc_attr($autocomplete).'"'.($required ? ' required aria-required="true"' : '').'></p>';
+        echo '<p class="form-row '.esc_attr($class).'"><label for="wewp-aq-f-'.esc_attr($key).'">'.esc_html($label).' '.self::marker($required).'</label>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- marker() escapes its text.
+        echo '<input id="wewp-aq-f-'.esc_attr($key).'" class="input-text" type="'.esc_attr($type).'" name="'.esc_attr($key).'" value="'.esc_attr($value).'" autocomplete="'.esc_attr($autocomplete).'"'.($required ? ' required aria-required="true"' : '').($invalid ? ' aria-invalid="true"' : '').'></p>';
+    }
+
+    /**
+     * One extra field from Settings → Quotes → Request form.
+     *
+     * @param array{id:string,label:string,type:string,required:bool,help:string,choices:list<string>} $field
+     */
+    private function extraField(array $field, mixed $value, bool $invalid): void
+    {
+        $id = 'wewp-aq-x-'.$field['id'];
+        $name = 'wewp_aq_extra['.$field['id'].']';
+        $help = $field['help'] !== '' ? '<span class="wewp-aq-help" id="'.esc_attr($id.'-help').'">'.esc_html($field['help']).'</span>' : '';
+        $state = ($field['help'] !== '' ? ' aria-describedby="'.esc_attr($id.'-help').'"' : '').($invalid ? ' aria-invalid="true"' : '');
+        $required = $field['required'] ? ' required aria-required="true"' : '';
+        $class = 'form-row form-row-wide wewp-aq-extra wewp-aq-extra-'.$field['type'];
+        $text = is_scalar($value) ? (string) $value : '';
+        // phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- $help, $state, $required and marker() are escaped above.
+        switch ($field['type']) {
+            case 'radio':
+            case 'checkboxes':
+                $picked = array_map('strval', array_filter((array) $value, 'is_scalar'));
+                $multiple = $field['type'] === 'checkboxes';
+                echo '<fieldset class="'.esc_attr($class).'"'.($field['help'] !== '' ? ' aria-describedby="'.esc_attr($id.'-help').'"' : '').'><legend>'.esc_html($field['label']).' '.self::marker($field['required']).'</legend>'.$help;
+                foreach ($field['choices'] as $index => $choice) {
+                    echo '<label class="wewp-aq-option" for="'.esc_attr($id.'-'.$index).'"><input id="'.esc_attr($id.'-'.$index).'" type="'.($multiple ? 'checkbox' : 'radio').'" name="'.esc_attr($name.($multiple ? '[]' : '')).'" value="'.esc_attr($choice).'"'.checked(in_array($choice, $picked, true), true, false).($multiple ? '' : $required).($invalid ? ' aria-invalid="true"' : '').'> <span>'.esc_html($choice).'</span></label>';
+                }
+                echo '</fieldset>';
+                break;
+            case 'checkbox':
+                echo '<p class="'.esc_attr($class).'"><label class="wewp-aq-option" for="'.esc_attr($id).'"><input id="'.esc_attr($id).'" type="checkbox" name="'.esc_attr($name).'" value="yes"'.checked($text, 'yes', false).$required.$state.'> <span>'.esc_html($field['label']).($field['required'] ? ' '.self::marker(true) : '').'</span></label>'.$help.'</p>';
+                break;
+            case 'select':
+                echo '<p class="'.esc_attr($class).'"><label for="'.esc_attr($id).'">'.esc_html($field['label']).' '.self::marker($field['required']).'</label>'.$help.'<select id="'.esc_attr($id).'" name="'.esc_attr($name).'"'.$required.$state.'><option value="">'.esc_html__('Choose an option', 'advanced-quotes-for-woocommerce').'</option>';
+                foreach ($field['choices'] as $choice) {
+                    echo '<option value="'.esc_attr($choice).'"'.selected($text, $choice, false).'>'.esc_html($choice).'</option>';
+                }
+                echo '</select></p>';
+                break;
+            case 'textarea':
+                echo '<p class="'.esc_attr($class).'"><label for="'.esc_attr($id).'">'.esc_html($field['label']).' '.self::marker($field['required']).'</label>'.$help.'<textarea id="'.esc_attr($id).'" class="input-text" name="'.esc_attr($name).'" rows="4" maxlength="2000"'.$required.$state.'>'.esc_textarea($text).'</textarea></p>';
+                break;
+            default:
+                $attributes = match ($field['type']) {
+                    'number' => 'type="number" step="any" inputmode="decimal"',
+                    'date' => 'type="date"',
+                    default => 'type="text" maxlength="200"',
+                };
+                echo '<p class="'.esc_attr($class).'"><label for="'.esc_attr($id).'">'.esc_html($field['label']).' '.self::marker($field['required']).'</label>'.$help.'<input id="'.esc_attr($id).'" class="input-text" '.$attributes.' name="'.esc_attr($name).'" value="'.esc_attr($text).'"'.$required.$state.'></p>';
+        }
+        // phpcs:enable
     }
 }

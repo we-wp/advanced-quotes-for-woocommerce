@@ -66,3 +66,15 @@
 .wewp-aq-cart .wewp-aq-button:hover { background: rgba(0, 0, 0, 0.05); color: inherit; }
 .wewp-aq-add .wewp-aq-button:focus-visible,
 .wewp-aq-cart .wewp-aq-button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+/* Extra fields from Settings → Quotes → Request form. */
+/* Padding, not margin: the heading clears floated rows, and clearance would swallow a top margin. */
+.wewp-aq-request .wewp-aq-subhead { clear: both; margin: 0 0 0.75em; padding-top: 1.25em; font-size: 1.15em; }
+.wewp-aq-request .wewp-aq-help { display: block; margin: 0 0 0.45em; font-size: 0.9em; opacity: 0.8; }
+.wewp-aq-request fieldset.form-row { clear: both; min-width: 0; margin: 0 0 1em; padding: 3px; border: 0; }
+.wewp-aq-request fieldset.form-row legend { display: block; margin: 0 0 0.3em; padding: 0; font-weight: inherit; }
+.wewp-aq-request .form-row .wewp-aq-option { display: flex; align-items: flex-start; gap: 0.55em; margin: 0 0 0.4em; line-height: 1.5; cursor: pointer; }
+.wewp-aq-request .form-row .wewp-aq-option input { flex: none; width: 1.1em; height: 1.1em; margin: 0.2em 0 0; font-size: inherit; }
+.wewp-aq-request .wewp-aq-extra-number input,
+.wewp-aq-request .wewp-aq-extra-date input { max-width: 16em; }
+.wewp-aq-request .form-row .input-text[aria-invalid="true"],
+.wewp-aq-request .form-row select[aria-invalid="true"] { border-color: #b3261e; box-shadow: 0 0 0 1px #b3261e; }

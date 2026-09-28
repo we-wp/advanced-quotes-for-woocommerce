@@ -67,7 +67,8 @@ final class Admin
         if (! str_ends_with($hook, '_page_'.self::SLUG)) {
             return;
         }
-        $version = WEWP_AQ_VERSION.'-'.filemtime(dirname(WEWP_AQ_FILE).'/assets/js/admin.js');
+        $assets = dirname(WEWP_AQ_FILE).'/assets/';
+        $version = WEWP_AQ_VERSION.'-'.max(filemtime($assets.'js/admin.js'), filemtime($assets.'css/admin.css'));
         wp_enqueue_style('wewp-aq-admin', Plugin::url('assets/css/admin.css'), ['woocommerce_admin_styles'], $version);
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen routing.
         if (in_array(sanitize_key(wp_unslash($_GET['action'] ?? '')), ['new', 'edit'], true)) {
