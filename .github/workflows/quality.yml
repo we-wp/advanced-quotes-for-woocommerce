@@ -27,6 +27,6 @@ jobs:
           python3 tools/build.py
           composer audit --locked --working-dir=tools
           php tests/render.php --packaged
-          cp dist/advanced-quotes-for-woocommerce-0.1.0.zip /tmp/first.zip
+          cp dist/advanced-quotes-for-woocommerce-*.zip /tmp/first.zip
           python3 tools/build.py
-          cmp /tmp/first.zip dist/advanced-quotes-for-woocommerce-0.1.0.zip
+          cmp /tmp/first.zip dist/advanced-quotes-for-woocommerce-*.zip
