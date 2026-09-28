@@ -1,0 +1,32 @@
+name: Quality
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
+        with:
+          php-version: '8.3'
+          extensions: dom, gd, mbstring
+          tools: composer:v2
+          coverage: none
+      - name: Audit and lint
+        run: |
+          composer install --no-dev --no-scripts --no-interaction
+          composer audit --locked
+          find src templates tests -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l advanced-quotes-for-woocommerce.php
+          php tests/render.php
+      - name: Verify packaged renderer and reproducibility
+        run: |
+          python3 tools/build.py
+          composer audit --locked --working-dir=tools
+          php tests/render.php --packaged
+          cp dist/advanced-quotes-for-woocommerce-0.1.0.zip /tmp/first.zip
+          python3 tools/build.py
+          cmp /tmp/first.zip dist/advanced-quotes-for-woocommerce-0.1.0.zip
