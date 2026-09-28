@@ -1,0 +1,9 @@
+{
+  "name": "we-wp/advanced-quotes-for-woocommerce",
+  "description": "WooCommerce quote requests, merchant pricing, numbered PDF quotes and customer acceptance with payment.",
+  "type": "wordpress-plugin",
+  "license": "GPL-3.0-or-later",
+  "require": {"php": "^8.3", "dompdf/dompdf": "3.1.6"},
+  "autoload": {"psr-4": {"WeWP\\AdvancedQuotes\\": "src/"}},
+  "config": {"allow-plugins": false, "sort-packages": true}
+}

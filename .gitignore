@@ -1,0 +1,11 @@
+/vendor/
+/dist/
+/build/
+/tests/runtime/
+
+tools/vendor/
+
+/AGENTS.md
+/PRODUCT.md
+/DESIGN.md
+/.impeccable/

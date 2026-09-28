@@ -1,0 +1,68 @@
+/* Advanced Quotes storefront. Inherits the theme's buttons and forms. */
+.wewp-aq-add { margin: 0.75em 0 1.25em; }
+.wewp-aq-add .wewp-aq-button { margin: 0; }
+.wewp-aq-add-error { margin: 0.5em 0 0; color: #b3261e; font-size: 0.9em; }
+.wewp-aq-cart { margin-top: 0.75em; }
+.wewp-aq-cart .wewp-aq-button { display: block; width: 100%; text-align: center; }
+.wewp-aq-request .shop_table { margin-bottom: 1em; }
+.wewp-aq-request .product-name a { font-weight: 600; }
+.wewp-aq-request .wewp-aq-thumb img { width: 48px; height: auto; margin-right: 12px; vertical-align: middle; border-radius: 2px; }
+.wewp-aq-request .wewp-aq-variation { display: block; font-size: 0.9em; opacity: 0.8; margin-top: 0.2em; }
+.wewp-aq-request .product-quantity input { width: 5em; }
+.wewp-aq-request .wewp-aq-remove { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; font-size: 0.9em; }
+.wewp-aq-request .wewp-aq-form { margin-top: 2.5em; }
+.wewp-aq-request .wewp-aq-form::after { content: ""; display: table; clear: both; }
+.wewp-aq-request .form-row { margin-bottom: 1em; }
+.wewp-aq-request .form-row label { display: block; margin-bottom: 0.3em; }
+.wewp-aq-request .form-row input,
+.wewp-aq-request .form-row select,
+.wewp-aq-request .form-row textarea { width: 100%; box-sizing: border-box; }
+.wewp-aq-request .wewp-aq-intro,
+.wewp-aq-request .wewp-aq-privacy { max-width: 60ch; }
+.wewp-aq-request .wewp-aq-privacy { clear: both; font-size: 0.9em; }
+.wewp-aq-request .wewp-aq-thanks,
+.wewp-aq-request .wewp-aq-empty { padding: 1.5em 0; }
+.wewp-aq-hp { position: absolute !important; left: -9999px !important; width: 1px; height: 1px; overflow: hidden; }
+@media (min-width: 769px) {
+	.wewp-aq-request .form-row-first,
+	.wewp-aq-request .form-row-last { width: 48%; }
+	.wewp-aq-request .form-row-first { float: left; clear: left; }
+	.wewp-aq-request .form-row-last { float: right; }
+	.wewp-aq-request .form-row-wide { clear: both; }
+}
+.wewp-aq-request .wewp-aq-secondary,
+.wewp-aq-request .wewp-aq-secondary:visited {
+	background: transparent;
+	color: inherit;
+	border: 1px solid currentColor;
+	box-shadow: none;
+}
+.wewp-aq-request .wewp-aq-secondary:hover { background: rgba(0, 0, 0, 0.05); color: inherit; }
+.wewp-aq-request .product-quantity input,
+.wewp-aq-request .form-row select {
+	padding: 0.55em 0.7em;
+	font-size: 1rem;
+	line-height: 1.3;
+	border: 1px solid #c5cad1;
+	border-radius: 4px;
+	background: #fff;
+	color: inherit;
+}
+.wewp-aq-request .product-quantity input { width: 5.5em; }
+.wewp-aq-request .product-remove { text-align: right; }
+@media (max-width: 768px) {
+	.wewp-aq-request .form-row-first,
+	.wewp-aq-request .form-row-last { float: none; width: 100%; }
+}
+/* Buying stays the primary action; the quote request is the secondary path. */
+.wewp-aq-add .wewp-aq-button,
+.wewp-aq-cart .wewp-aq-button {
+	background: transparent;
+	color: inherit;
+	border: 1px solid currentColor;
+	box-shadow: none;
+}
+.wewp-aq-add .wewp-aq-button:hover,
+.wewp-aq-cart .wewp-aq-button:hover { background: rgba(0, 0, 0, 0.05); color: inherit; }
+.wewp-aq-add .wewp-aq-button:focus-visible,
+.wewp-aq-cart .wewp-aq-button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
