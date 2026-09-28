@@ -4,7 +4,7 @@ Tags: woocommerce, quote, request a quote, b2b, pdf
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 0.1.0
+Stable tag: 0.2.0
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -22,6 +22,7 @@ Advanced Quotes is a WooCommerce plugin by UAB BusinessPress. It turns a price r
 Free includes:
 
 * A Request a quote button on product pages and the cart, and a request page.
+* A request form you can shape: make phone, company, tax number, address and message required, optional or hidden, and add up to 20 fields of your own, such as a deadline, a budget or measurements.
 * The admin quote generator: registered or guest customers, catalogue products and variations, custom items such as services, per-line discounts, shipping, notes, validity date and live totals.
 * Taxes from your WooCommerce tax rates and rounding settings. The accepted order must reach the same total, or no order is kept.
 * Sequential quote numbers with your own prefix. Numbers are never reused.
@@ -50,6 +51,9 @@ Activation creates a Request a quote page with the [wewp_quote_request] shortcod
 = How does the customer pay? =
 Accepting creates a pending order with the quoted items, prices, taxes and shipping. WooCommerce then shows its standard payment page with your enabled payment methods. Accepting holds stock for the pending order, as WooCommerce checkout does. If an item is out of stock, no order is created and the customer sees a message. WooCommerce reduces stock with its normal order rules.
 
+= Can I ask customers for more details? =
+Yes. Open WooCommerce > Settings > Quotes > Request form and add fields: text, paragraph, number, date, dropdown, radio buttons, checkboxes or a single checkbox. Each field can be required and can have help text. The answers appear with the request in WooCommerce > Quotes and in the request emails.
+
 = Can I change a quote after I send it? =
 Yes. Edit it and send a new revision. The customer link always shows the latest revision. Earlier revisions and their PDFs stay in the quote history.
 
@@ -69,6 +73,9 @@ No. Deactivation and deletion keep quotes, revisions, PDFs and the counter.
 Activate the plugin separately on each site. Network activation is refused.
 
 == Changelog ==
+
+= 0.2.0 =
+Request form fields: add up to 20 fields of your own to the quote request form, and choose which contact fields are required, optional or hidden. Answers appear with the request and in the request emails. Form errors now show one message per field and mark the fields to correct.
 
 = 0.1.0 =
 Initial Free release: storefront requests, admin quote generator, numbered revisions with PDFs, online acceptance with payment, customer account list and five emails.

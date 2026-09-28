@@ -31,6 +31,7 @@ Let customers ask for a price, send them a quote, and get paid when they accept.
 ## What you get
 
 - A Request a quote button on product pages and in the cart
+- Your own questions on the request form, such as a deadline, budget or measurements
 - A quote generator with discounts, custom items and shipping
 - PDF quotes with your logo and colour
 - A page where customers accept, decline or download their quote
@@ -39,7 +40,7 @@ Let customers ask for a price, send them a quote, and get paid when they accept.
 
 ## Install
 
-1. Download `advanced-quotes-for-woocommerce-0.1.0.zip` from the [latest release](https://github.com/we-wp/advanced-quotes-for-woocommerce/releases/latest). The Source code files won't install.
+1. Download `advanced-quotes-for-woocommerce-0.2.0.zip` from the [latest release](https://github.com/we-wp/advanced-quotes-for-woocommerce/releases/latest). The Source code files won't install.
 2. In WordPress, go to **Plugins → Add New Plugin → Upload Plugin**, then install and activate it.
 3. Open **WooCommerce → Settings → Quotes** to add your business details and logo.
 

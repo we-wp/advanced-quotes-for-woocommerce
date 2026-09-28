@@ -6,7 +6,7 @@ use WeWP\AdvancedQuotes\Plugin;
 /**
  * Plugin Name: Advanced Quotes for WooCommerce
  * Description: Let customers request quotes, set prices in your admin, send numbered PDF quotes and take payment when the customer accepts.
- * Version: 0.1.0
+ * Version: 0.2.0
  * Author: UAB BusinessPress
  * Plugin URI: https://we-wp.com/plugins/advanced-quotes-for-woocommerce
  * Update URI: https://we-wp.com/plugins/advanced-quotes-for-woocommerce
@@ -22,7 +22,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-define('WEWP_AQ_VERSION', '0.1.0');
+define('WEWP_AQ_VERSION', '0.2.0');
 define('WEWP_AQ_FILE', __FILE__);
 
 require_once __DIR__.'/vendor/autoload.php';
